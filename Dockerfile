@@ -19,6 +19,6 @@ RUN mkdir -p /backup
 COPY backup.sh /usr/local/bin/backup.sh
 RUN chmod +x /usr/local/bin/backup.sh
 
-RUN echo "0 2 * * * /usr/local/bin/backup.sh > /proc/1/fd/1 2>&1" > /etc/crontabs/root
+COPY etc /etc
 
 CMD ["crond", "-f", "-l", "2"]
