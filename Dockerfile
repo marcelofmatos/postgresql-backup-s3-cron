@@ -1,8 +1,7 @@
 FROM postgres:15-alpine
 
-RUN apk add --no-cache bash curl ca-certificates python3 py3-pip && \
-    pip install awscli && \
-    rm -rf /var/cache/apk/*
+RUN apk add --no-cache bash curl ca-certificates aws-cli py3-pip \
+    && rm -rf /var/cache/apk/*
 
 ENV PGHOST=database
 ENV PGPORT=5432
