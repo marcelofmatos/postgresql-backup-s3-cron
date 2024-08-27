@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  pg-backup-s3:
+    image: dockerhub.socialme.com.br/impacto-apis/postgresql-backup-s3-cron:main
+    environment:
+      PGHOST: "database"
+      PGPORT: 5432
+      PGUSER: "postgres"
+      PGPASSWORD: "postgres"
+      PGDATABASE: "database"
+      S3_BUCKET_NAME: "your_s3_bucket_name"
+      S3_REGION: "your_s3_region"
+      AWS_ACCESS_KEY_ID: "your_access_key_id"
+      AWS_SECRET_ACCESS_KEY: "your_secret_access_key"
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+    volumes:
+      - backup-data:/backup
+
+volumes:
+  backup-data:

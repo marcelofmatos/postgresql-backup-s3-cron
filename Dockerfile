@@ -10,6 +10,8 @@ ENV PGPASSWORD=postgres
 ENV PGDATABASE=database
 ENV S3_BUCKET_NAME=your_s3_bucket_name
 ENV S3_REGION=your_s3_region
+ENV AWS_ACCESS_KEY_ID=your_access_key_id
+ENV AWS_SECRET_ACCESS_KEY=your_secret_access_key
 
 RUN mkdir -p /backup
 
