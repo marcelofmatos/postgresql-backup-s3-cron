@@ -1,0 +1,30 @@
+stages:
+  - build
+  - update
+
+build-image:
+  stage: build
+  script:
+    - IMAGE_NAME="$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME"
+    - docker login -u "gitlab-ci-token" -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker build --pull -t $IMAGE_NAME -f docker/Dockerfile .
+    - docker push $IMAGE_NAME
+
+update-services:
+  stage: update
+  image: alpine/curl
+  script:
+    - |
+      IMAGE_NAME="$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME"
+      echo "IMAGE_NAME=$IMAGE_NAME"
+      if [ "$CI_COMMIT_BRANCH" = "main" ]; then
+        echo "Deploying to main..."
+        echo "Webhook URL: $WEBHOOK_DEPLOY_MAIN"
+        curl --silent --fail -X POST $WEBHOOK_DEPLOY_MAIN -H "Content-Type: application/json" -d "{\"image_name\": \"$IMAGE_NAME\"}"
+      elif [ "$CI_COMMIT_BRANCH" = "homolog" ]; then
+        echo "Deploying to homolog..."
+        echo "Webhook URL: $WEBHOOK_DEPLOY_HOMOLOG"
+        curl --silent --fail -X POST $WEBHOOK_DEPLOY_HOMOLOG -H "Content-Type: application/json" -d "{\"image_name\": \"$IMAGE_NAME\"}"
+      else
+        echo "No deployment for branch $CI_COMMIT_BRANCH"
+      fi
