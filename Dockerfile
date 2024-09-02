@@ -16,9 +16,8 @@ ENV S3_DIRECTORY_NAME=default-directory
 
 RUN mkdir -p /backup
 
-COPY backup.sh /usr/local/bin/backup.sh
-RUN chmod +x /usr/local/bin/backup.sh
-
 COPY etc /etc
+COPY usr /usr
+RUN chmod +x /usr/local/bin/*.sh
 
-CMD ["crond", "-f", "-l", "2"]
+CMD ["/usr/local/bin/start-cron.sh"]
