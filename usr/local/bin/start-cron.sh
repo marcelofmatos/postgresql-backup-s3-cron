@@ -3,5 +3,6 @@
 echo "Current crontabs:"
 cat /etc/crontabs/*
 
+echo ""
 echo "Cron service started"
 exec crond -f -l 2
