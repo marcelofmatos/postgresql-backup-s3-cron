@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BACKUP_FILE="/backup/$(date +\%Y-\%m-\%d_\%H-\%M-\%S).sql"
+BACKUP_FILE="/backup/$(date +\%Y-\%m-\%d_\%H-\%M-\%S).pgdump"
 COMPRESSED_FILE="/backup/$(date +\%Y-\%m-\%d_\%H-\%M-\%S).tgz"
 
 S3_DIRECTORY_NAME=${S3_DIRECTORY_NAME:-"default-directory"}
