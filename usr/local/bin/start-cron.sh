@@ -4,6 +4,12 @@ CRON_SCHEDULE=${CRON_SCHEDULE:-"0 0 * * *"}
 CRON_BACKUP_COMMAND=${CRON_BACKUP_COMMAND:-"/usr/local/bin/backup.sh > /proc/1/fd/1 2>&1"}
 
 # Verificação das Variáveis de Ambiente
+if [[ -z "${RESTORE_BACKUP_FILE}" ]]; then
+  echo "Arquivo de backup será copiado para o entrypoint (RESTORE_BACKUP_FILE=${RESTORE_BACKUP_FILE})"
+  restore2entrypoint.sh "${RESTORE_BACKUP_FILE}" 
+  echo "Arquivo copiado."
+fi
+
 if [[ -z "${CRON_SCHEDULE}" ]]; then
   echo "A variável CRON_SCHEDULE não está definida. Cron job não será configurado."
   exit 0
