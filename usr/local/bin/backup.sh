@@ -1,6 +1,7 @@
 #!/bin/bash
-
-BACKUP_FILE="/backup/$(date +\%Y-\%m-\%d_\%H-\%M-\%S).sql.gz"
+PGDATABASE=${PGDATABASE:-"postgres"}
+PGHOST=${PGHOST:-"localhost"}
+BACKUP_FILE="/backup/$(PGHOST)_$(PGDATABASE)_$(date +\%Y-\%m-\%d_\%H-\%M-\%S).sql.gz"
 
 S3_DIRECTORY_NAME=${S3_DIRECTORY_NAME:-"default-directory"}
 
