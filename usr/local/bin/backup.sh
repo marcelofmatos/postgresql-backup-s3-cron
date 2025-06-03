@@ -11,7 +11,7 @@ mkdir -p "$BACKUP_DIR"
 
 echo "Iniciando backup..."
 
-DATABASES=$(psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -lqt | cut -d'|' -f1 | grep -v template | grep -v postgres | grep -v "^prisma_migrate_shadow" | sed '/^$/d' | sed 's/^ *//')
+DATABASES=$(psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -lqt | cut -d'|' -f1 | grep -v template | grep -v postgres | grep -v "prisma_migrate_shadow" | sed '/^$/d' | sed 's/^ *//')
 
 for database in $DATABASES; do
     echo "Backup: $database"
