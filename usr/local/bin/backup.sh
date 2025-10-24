@@ -11,6 +11,9 @@ TIMESTAMP=$(date +%Y-%m-%d_%H-%M-%S)
 mkdir -p "$BACKUP_DIR"
 
 echo "Iniciando backup..."
+START_TIME=$(date '+%Y-%m-%d %H:%M:%S')
+echo "Data de início: $START_TIME"
+echo "$START_TIME" > "$BACKUP_DIR/start_time_${TIMESTAMP}.txt"
 
 DATABASES=$(psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -lqt | cut -d'|' -f1 | grep -v template | grep -v postgres | grep -v "prisma_migrate_shadow" | sed '/^$/d' | sed 's/^ *//')
 
@@ -32,3 +35,20 @@ aws s3 cp "$GLOBALS_FILE" "s3://$S3_BUCKET_NAME/$S3_DIRECTORY_NAME/" --region "$
 rm "$GLOBALS_FILE"
 
 echo "Backup concluído!"
+END_TIME=$(date '+%Y-%m-%d %H:%M:%S')
+echo "Data de término: $END_TIME"
+echo "$END_TIME" > "$BACKUP_DIR/end_time_${TIMESTAMP}.txt"
+
+START_EPOCH=$(date -d "$START_TIME" +%s)
+END_EPOCH=$(date -d "$END_TIME" +%s)
+ELAPSED_SEC=$((END_EPOCH - START_EPOCH))
+
+H=$((ELAPSED_SEC/3600))
+M=$(((ELAPSED_SEC%3600)/60))
+S=$((ELAPSED_SEC%60))
+
+echo "Tempo decorrido: ${H}h ${M}m ${S}s"
+printf "%02dh %02dm %02ds\n" "$H" "$M" "$S" > "$BACKUP_DIR/elapsed_${TIMESTAMP}.txt"
+
+# Remover arquivos usados para cálculo do tempo
+rm -f "$BACKUP_DIR/start_time_${TIMESTAMP}.txt" "$BACKUP_DIR/end_time_${TIMESTAMP}.txt" "$BACKUP_DIR/elapsed_${TIMESTAMP}.txt"
