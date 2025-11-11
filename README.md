@@ -62,20 +62,14 @@ O projeto é composto por dois scripts principais:
 
 ## 📦 Requisitos
 
-### Para uso com Docker (recomendado)
 - Docker 20.10+
-- Docker Compose 2.0+ (opcional)
+- Docker Compose 2.0+ (opcional, mas recomendado)
 - Acesso a um bucket S3 com credenciais válidas
-
-### Para uso standalone
-- PostgreSQL client tools (pg_dump, pg_dumpall)
-- AWS CLI configurado
-- Bash 4.0+
-- Cron daemon
+- Rede com acesso ao servidor PostgreSQL e ao S3
 
 ## 🚀 Instalação
 
-### Usando Docker Compose (Recomendado)
+### Método 1: Docker Compose (Recomendado)
 
 1. Clone o repositório:
 ```bash
@@ -83,18 +77,25 @@ git clone https://github.com/seu-usuario/postgresql-backup-s3-cron.git
 cd postgresql-backup-s3-cron
 ```
 
-2. Configure as variáveis de ambiente (veja [Configuração](#configuração))
+2. Edite o `docker-compose.yml` com suas configurações
 
 3. Inicie o container:
 ```bash
 docker-compose up -d
 ```
 
-### Usando Docker diretamente
+4. Verifique os logs:
+```bash
+docker-compose logs -f pg-backup-s3
+```
+
+### Método 2: Docker Run
 
 ```bash
+# Build da imagem
 docker build -t postgresql-backup-s3-cron .
 
+# Executar container
 docker run -d \
   --name pg-backup \
   -e PGHOST=seu-host-postgres \
@@ -109,19 +110,23 @@ docker run -d \
   postgresql-backup-s3-cron
 ```
 
-### Instalação Standalone
+### Método 3: Docker Registry
 
-Se preferir usar sem Docker:
+Se a imagem já está publicada em um registry:
 
 ```bash
-# Copiar scripts para /usr/local/bin
-sudo cp usr/local/bin/backup.sh /usr/local/bin/
-sudo cp usr/local/bin/sync.sh /usr/local/bin/
-sudo chmod +x /usr/local/bin/backup.sh /usr/local/bin/sync.sh
+docker pull seu-registry/postgresql-backup-s3-cron:latest
 
-# Configurar cron
-sudo crontab -e
-# Adicionar: 0 2 * * * S3_BUCKET_NAME=meu-bucket /usr/local/bin/backup.sh >> /var/log/backup.log 2>&1
+docker run -d \
+  --name pg-backup \
+  -e PGHOST=database \
+  -e PGUSER=postgres \
+  -e PGPASSWORD=senha \
+  -e S3_BUCKET_NAME=meu-bucket \
+  -e S3_REGION=sa-east-1 \
+  -e AWS_ACCESS_KEY_ID=sua-chave \
+  -e AWS_SECRET_ACCESS_KEY=sua-chave-secreta \
+  seu-registry/postgresql-backup-s3-cron:latest
 ```
 
 ## ⚙️ Configuração
@@ -229,9 +234,9 @@ Script principal que realiza os backups PostgreSQL.
 - Calcula tempo de execução
 - Chama automaticamente o sync.sh
 
-**Uso direto:**
+**Uso dentro do container:**
 ```bash
-PGHOST=localhost PGUSER=postgres S3_BUCKET_NAME=meu-bucket ./backup.sh
+docker exec pg-backup /usr/local/bin/backup.sh
 ```
 
 ### sync.sh
@@ -248,9 +253,9 @@ Script de sincronização com S3.
 - Logs detalhados por arquivo
 - Relatório final de operações
 
-**Uso direto:**
+**Uso dentro do container:**
 ```bash
-S3_BUCKET_NAME=meu-bucket S3_REGION=sa-east-1 ./sync.sh /backup
+docker exec pg-backup /usr/local/bin/sync.sh /backup
 ```
 
 **Códigos de retorno:**
@@ -479,10 +484,9 @@ O projeto usa tags semânticas:
 
 **Causa:** Container não tem AWS CLI instalado
 
-**Solução:** O Dockerfile já inclui AWS CLI. Se usar standalone, instale:
+**Solução:** O Dockerfile já inclui AWS CLI. Se o erro persistir, reconstrua a imagem:
 ```bash
-apt-get install awscli  # Debian/Ubuntu
-yum install aws-cli     # RedHat/CentOS
+docker-compose build --no-cache
 ```
 
 ### Erro: "Variável S3_BUCKET_NAME não está definida"
