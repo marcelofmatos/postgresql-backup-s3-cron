@@ -22,17 +22,11 @@ for database in $DATABASES; do
     BACKUP_FILE="$BACKUP_DIR/${PGHOST}_${database}_${TIMESTAMP}.sql.gz"
     
     pg_dump -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" "$database" | gzip > "$BACKUP_FILE"
-    
-    aws s3 cp "$BACKUP_FILE" "s3://$S3_BUCKET_NAME/$S3_DIRECTORY_NAME/" --region "$S3_REGION" --storage-class GLACIER_IR $S3_PARAMS
-    
-    rm "$BACKUP_FILE"
 done
 
 echo "Backup das configurações globais..."
 GLOBALS_FILE="$BACKUP_DIR/${PGHOST}_globals_${TIMESTAMP}.sql.gz"
 pg_dumpall -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" --globals-only | gzip > "$GLOBALS_FILE"
-aws s3 cp "$GLOBALS_FILE" "s3://$S3_BUCKET_NAME/$S3_DIRECTORY_NAME/" --region "$S3_REGION" --storage-class GLACIER_IR $S3_PARAMS
-rm "$GLOBALS_FILE"
 
 echo "Backup concluído!"
 END_TIME=$(date '+%Y-%m-%d %H:%M:%S')
@@ -52,3 +46,7 @@ printf "%02dh %02dm %02ds\n" "$H" "$M" "$S" > "$BACKUP_DIR/elapsed_${TIMESTAMP}.
 
 # Remover arquivos usados para cálculo do tempo
 rm -f "$BACKUP_DIR/start_time_${TIMESTAMP}.txt" "$BACKUP_DIR/end_time_${TIMESTAMP}.txt" "$BACKUP_DIR/elapsed_${TIMESTAMP}.txt"
+
+# Sincronizar backups com S3
+echo "Sincronizando backups com S3..."
+"$(dirname "$0")/sync.sh" "$BACKUP_DIR"
