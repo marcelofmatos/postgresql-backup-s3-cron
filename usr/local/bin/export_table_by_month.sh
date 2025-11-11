@@ -110,10 +110,10 @@ SELECT to_char(month_start, 'YYYY-MM') AS ym,
        month_start::text AS start_date,
        (month_start + INTERVAL '1 month')::date::text AS next_date
 FROM months
-ORDER BY month_start;
+ORDER BY month_start
 "
 
-months_count=$("${PSQL[@]}" -tAc "SELECT COUNT(*) FROM (${months_query}) s;")
+months_count=$("${PSQL[@]}" -tAc "SELECT COUNT(*) FROM (${months_query}) s")
 if [[ -z "$months_count" || "$months_count" == "0" ]]; then
   echo "Nenhum mês encontrado."
   exit 0
