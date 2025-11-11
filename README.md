@@ -605,8 +605,8 @@ Este projeto está sob a licença MIT. Veja o arquivo `LICENSE` para mais detalh
 ## 📞 Suporte
 
 Para suporte, abra uma issue no GitHub ou entre em contato através de:
-- Issues: https://github.com/seu-usuario/postgresql-backup-s3-cron/issues
-- Email: seu-email@exemplo.com
+- Issues: https://github.com/marcelofmatos/postgresql-backup-s3-cron/issues
+- Email: issues@marcelomatos.dev
 
 ---
 
