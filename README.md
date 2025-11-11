@@ -73,11 +73,14 @@ O projeto é composto por dois scripts principais:
 
 ## 🚀 Instalação
 
+> 📦 **Imagem Docker Pública:** `ghcr.io/marcelofmatos/postgresql-backup-s3-cron:latest`  
+> Disponível gratuitamente no GitHub Container Registry para todos os usuários.
+
 ### Método 1: Docker Compose (Recomendado)
 
 1. Clone o repositório:
 ```bash
-git clone https://github.com/seu-usuario/postgresql-backup-s3-cron.git
+git clone https://github.com/marcelofmatos/postgresql-backup-s3-cron.git
 cd postgresql-backup-s3-cron
 ```
 
@@ -119,7 +122,7 @@ docker run -d \
 Se a imagem já está publicada em um registry:
 
 ```bash
-docker pull seu-registry/postgresql-backup-s3-cron:latest
+docker pull ghcr.io/marcelofmatos/postgresql-backup-s3-cron:latest
 
 docker run -d \
   --name pg-backup \
@@ -130,7 +133,7 @@ docker run -d \
   -e S3_REGION=sa-east-1 \
   -e AWS_ACCESS_KEY_ID=sua-chave \
   -e AWS_SECRET_ACCESS_KEY=sua-chave-secreta \
-  seu-registry/postgresql-backup-s3-cron:latest
+  ghcr.io/marcelofmatos/postgresql-backup-s3-cron:latest
 ```
 
 ## ⚙️ Configuração
@@ -142,7 +145,7 @@ version: '3.8'
 
 services:
   pg-backup-s3:
-    image: seu-registry/postgresql-backup-s3-cron:latest
+    image: ghcr.io/marcelofmatos/postgresql-backup-s3-cron:latest
     environment:
       # Conexão PostgreSQL
       PGHOST: "database"
@@ -393,14 +396,14 @@ Para fazer backup de múltiplos servidores PostgreSQL, crie um container para ca
 ```yaml
 services:
   backup-db1:
-    image: postgresql-backup-s3-cron
+    image: ghcr.io/marcelofmatos/postgresql-backup-s3-cron:latest
     environment:
       PGHOST: "postgres-db1"
       S3_DIRECTORY_NAME: "db1-backups"
       # ...
   
   backup-db2:
-    image: postgresql-backup-s3-cron
+    image: ghcr.io/marcelofmatos/postgresql-backup-s3-cron:latest
     environment:
       PGHOST: "postgres-db2"
       S3_DIRECTORY_NAME: "db2-backups"
