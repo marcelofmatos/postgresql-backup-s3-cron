@@ -3,6 +3,13 @@
 # Script de sincronização de backups com S3
 # Sincroniza arquivos do diretório de backup com S3 e remove localmente após sucesso
 
+# Variáveis externas usadas neste script:
+# - BACKUP_DIR: Diretório de backup padrão (usado como fallback para SYNC_DIR se não fornecido como argumento).
+# - S3_BUCKET_NAME: Nome do bucket S3 de destino (obrigatório).
+# - S3_DIRECTORY_NAME: Nome do diretório dentro do bucket S3 (padrão: postgres-backups).
+# - S3_PARAMS: Parâmetros adicionais para o comando AWS CLI (padrão: vazio).
+# - S3_REGION: Região do S3 (opcional, adicionada ao comando se definida).
+
 set -e
 
 # Configurações
