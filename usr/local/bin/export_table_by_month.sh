@@ -10,6 +10,8 @@
 #   SCHEMA (default: public)
 #   TABLE (obrigatório)
 #   DATE_COLUMN (obrigatório)
+#   COMPRESSION_TYPE (default: gzip) - Tipo de compactação do CSV
+#     Valores: gzip (.csv.gz), bzip2 (.csv.bz2), xz (.csv.xz), plain/none (.csv)
 
 set -Eeuo pipefail
 trap 'echo "Erro na linha ${LINENO}. Abortando." >&2' ERR
@@ -28,10 +30,14 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   echo "  PGPASSWORD   Senha (se necessário)"
   echo "  OUTPUT_DIR   Diretório de saída (default: /backup)"
   echo "  SCHEMA       Schema da tabela (default: public)"
+  echo "  COMPRESSION_TYPE  Tipo de compactação (default: gzip)"
+  echo "                    Valores: gzip, bzip2, xz, plain, none"
   echo ""
   echo "Exemplos:"
   echo "  TABLE=impacto_request_log DATE_COLUMN=created_at $(basename "$0")"
   echo "  OUTPUT_DIR=/mnt/backup TABLE=orders DATE_COLUMN=order_date $(basename "$0")"
+  echo "  COMPRESSION_TYPE=xz TABLE=logs DATE_COLUMN=timestamp $(basename "$0")"
+  echo "  COMPRESSION_TYPE=plain TABLE=data DATE_COLUMN=date $(basename "$0")"
   exit 0
 fi
 
@@ -42,6 +48,7 @@ SCHEMA="${SCHEMA:-public}"
 OUTPUT_DIR="${OUTPUT_DIR:-/backup}"
 TABLE="${TABLE:-}"
 DATE_COLUMN="${DATE_COLUMN:-}"
+COMPRESSION_TYPE="${COMPRESSION_TYPE:-gzip}"
 
 if [[ -z "$TABLE" ]]; then
   echo "Erro: Variável TABLE não definida."
@@ -58,6 +65,83 @@ if [[ -z "$DATE_COLUMN" ]]; then
 fi
 
 command -v psql >/dev/null 2>&1 || { echo "Erro: psql não encontrado no PATH."; exit 1; }
+
+# Funções auxiliares
+log_info() {
+  echo "[INFO] $*"
+}
+
+log_warn() {
+  echo "[WARN] $*" >&2
+}
+
+log_error() {
+  echo "[ERRO] $*" >&2
+}
+
+# Resolver tipo de compactação
+resolve_compression() {
+  COMPRESSION_TYPE_LC=$(printf %s "${COMPRESSION_TYPE}" | tr '[:upper:]' '[:lower:]')
+  case "$COMPRESSION_TYPE_LC" in
+    gzip|"")
+      COMPRESS_EXT=".csv.gz"
+      COMPRESS_CMD=(gzip -c)
+      COMPRESS_TOOL="gzip"
+      ;;
+    bzip2)
+      COMPRESS_EXT=".csv.bz2"
+      COMPRESS_CMD=(bzip2 -c)
+      COMPRESS_TOOL="bzip2"
+      ;;
+    xz)
+      COMPRESS_EXT=".csv.xz"
+      COMPRESS_CMD=(xz -c --threads=0)
+      COMPRESS_TOOL="xz"
+      ;;
+    plain|none)
+      COMPRESS_EXT=".csv"
+      COMPRESS_CMD=()
+      COMPRESS_TOOL=""
+      ;;
+    *)
+      log_warn "COMPRESSION_TYPE inválido: '$COMPRESSION_TYPE'. Usando gzip."
+      COMPRESS_EXT=".csv.gz"
+      COMPRESS_CMD=(gzip -c)
+      COMPRESS_TOOL="gzip"
+      COMPRESSION_TYPE_LC="gzip"
+      ;;
+  esac
+
+  if [[ -n "$COMPRESS_TOOL" ]] && ! command -v "$COMPRESS_TOOL" >/dev/null 2>&1; then
+    log_error "Ferramenta de compactação '$COMPRESS_TOOL' não encontrada no PATH."
+    exit 12
+  fi
+}
+
+# Compactar arquivo CSV
+compress_csv() {
+  local in="$1"
+  local out="$2"
+
+  if [[ -z "$in" ]] || [[ -z "$out" ]]; then
+    log_error "compress_csv: parâmetros inválidos"
+    return 2
+  fi
+
+  if [[ ${#COMPRESS_CMD[@]} -eq 0 ]]; then
+    log_info "Sem compactação (plain/none): movendo $(basename "$in") -> $(basename "$out")"
+    mv -f "$in" "$out"
+  else
+    log_info "Compactando ($COMPRESSION_TYPE_LC): $(basename "$in") -> $(basename "$out")"
+    "${COMPRESS_CMD[@]}" "$in" > "$out"
+    local rc=$?
+    if [[ $rc -ne 0 ]] || [[ ! -s "$out" ]]; then
+      log_error "Falha na compactação ($COMPRESSION_TYPE_LC). rc=$rc"
+      return 3
+    fi
+    rm -f "$in"
+  fi
+}
 
 mkdir -p "$OUTPUT_DIR"
 if [[ ! -w "$OUTPUT_DIR" ]]; then
@@ -119,10 +203,16 @@ if [[ -z "$months_count" || "$months_count" == "0" ]]; then
   exit 0
 fi
 
+# Resolver tipo de compactação
+resolve_compression
+log_info "Tipo de compactação: $COMPRESSION_TYPE_LC (extensão: $COMPRESS_EXT)"
+
 i=0
 "${PSQL[@]}" -At -F '|' -c "${months_query}" | while IFS='|' read -r ym start_date next_date; do
   i=$((i+1))
-  out_file="${OUTPUT_DIR}/${TABLE}_${ym}.csv"
+  tmp_csv="${OUTPUT_DIR}/${TABLE}_${ym}.csv.tmp"
+  base_out_file="${OUTPUT_DIR}/${TABLE}_${ym}"
+  out_file="${base_out_file}${COMPRESS_EXT}"
 
   echo "[${i}/${months_count}] ${ym}: contando linhas ..."
   count=$("${PSQL[@]}" -tAc "
@@ -132,24 +222,34 @@ i=0
       AND NOT (${DATE_COLUMN} >= '${next_date}');
   ")
 
-  echo "[${i}/${months_count}] ${ym}: exportando ${count} linhas para ${out_file} ..."
+  echo "[${i}/${months_count}] ${ym}: exportando ${count} linhas para CSV temporário ..."
   "${PSQL[@]}" -c "\\COPY (
     SELECT *
     FROM ${SCHEMA}.${TABLE}
     WHERE ${DATE_COLUMN} >= '${start_date}'
       AND NOT (${DATE_COLUMN} >= '${next_date}')
     ORDER BY ${DATE_COLUMN}
-  ) TO '${out_file}' WITH (FORMAT CSV, HEADER, DELIMITER ',', QUOTE '\"', ESCAPE '\"');"
+  ) TO '${tmp_csv}' WITH (FORMAT CSV, HEADER, DELIMITER ',', QUOTE '\"', ESCAPE '\"');"
 
-  if [[ ! -s "${out_file}" ]]; then
-    echo "Aviso: arquivo ${out_file} está vazio."
+  if [[ ! -s "${tmp_csv}" ]]; then
+    echo "Aviso: arquivo temporário ${tmp_csv} está vazio."
+    rm -f "${tmp_csv}"
   else
-    lines=$(($(wc -l "${out_file}" 2>/dev/null | awk '{print $1}') - 1))  # Subtract header line
+    lines=$(($(wc -l "${tmp_csv}" 2>/dev/null | awk '{print $1}') - 1))  # Subtract header line
     if [[ "$lines" != "$count" ]]; then
       echo "Aviso: ${ym}: exportadas ${lines} linhas (+ cabeçalho), esperado ${count}."
-    else
-      echo "[${i}/${months_count}] ${ym}: concluído (${lines} linhas + cabeçalho)."
     fi
+    
+    # Compactar arquivo
+    compress_csv "${tmp_csv}" "${out_file}" || {
+      echo "Erro: falha ao compactar ${tmp_csv}"
+      rm -f "${tmp_csv}"
+      continue
+    }
+    
+    # Exibir informações do arquivo final
+    file_size=$(du -h "${out_file}" 2>/dev/null | cut -f1)
+    echo "[${i}/${months_count}] ${ym}: concluído - ${lines} linhas, arquivo: $(basename "${out_file}") (${file_size})"
   fi
 done
 
